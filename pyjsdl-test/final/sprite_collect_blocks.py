@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """ Client-side form of dwarf-mushroom game. Refactored with call backs to
 transpile to Javascript.
 """
@@ -34,7 +34,7 @@ green    = (   0, 255,   0)
 
 Rect = pygame.Rect
 Color = pygame.Color
-SCREENRECT = Rect(0, 0, 540, 480) # """Need to increase this later, or make it dynamic to viewport"""
+SCREENRECT = Rect(0, 0, 1600, 800) # """Need to increase this later, or make it dynamic to viewport"""
 # Could use this: SCREENRECT = Rect(0, 0, 1600, 800)
 score = 0
 
@@ -53,29 +53,29 @@ all_sprites_list = pygame.sprite.Group()
 
 if engine == 'pygame':
     main_dir = os.path.split(os.path.abspath(__file__))[0]
-    data_dir = os.path.join(main_dir, 'data')
+    data_dir = os.path.join(main_dir, 'public/data')
 elif engine == 'pyjsdl':
     main_dir = ''
     data_dir = os.path.join(main_dir, 'data')
 
-def load_image(filename):
+def load_image(file):
 
     """loads image to prepare for play"""
-    filename = filename.split('.')[0] + '.png'
-    filename = os.path.join(main_dir, data_dir, filename)
+    file = file.split('.')[0] + '.png'
+    file = os.path.join(main_dir, data_dir, file)
 
     try:
-        surface = pygame.image.load(filename)
+        surface = pygame.image.load(file)
     except pygame.error:
-        raise SystemExit('Could not load image {0} {1}'.format(filename, pygame.get_error()))
+        raise SystemExit('Could not load image "%s" %'%(file, pygame.get_error()))
 
     return surface.convert_alpha()
 
 def load_images(*files):
     """ loads an array of images"""
     imgs = []
-    for filename in files:
-        imgs.append(load_image(filename))
+    for file in files:
+        imgs.append(load_image(file))
 
     return imgs
 
@@ -84,17 +84,17 @@ class dummysound:
     def play(self):
         pass
 
-def load_sound(filename):
+def load_sound(file):
     """loads sounds, used in setup"""
     if not pygame.mixer:
         return dummysound()
-    filename = os.path.join(main_dir, data_dir, filename)
+    file = os.path.join(main_dir, data_dir, file)
 
     try:
-        sound = pygame.mixer.Sound(filename)
+        sound = pygame.mixer.Sound(file)
         return sound
     except pygame.error:
-        print'Warning, unable to load, %s' % filename
+        print('Warning, unable to load, %s' % file)
 
     return dummysound()
 
@@ -107,13 +107,13 @@ class Player(pygame.sprite.Sprite):
 
     # -- Methods
     # Constructor function
-    def __init__(self, filename, x, y):
+    def __init__(self, file, x, y):
         # Call the parent's constructor
         pygame.sprite.Sprite.__init__(self)
 
         # Create an image of the block, and fill it with a color.
         # This could also be an image loaded from the disk.
-        self.image = pygame.image.load(filename).convert()
+        self.image = pygame.image.load(file).convert()
         self.image.set_colorkey(white)
 
         # Make our top-left corner the passed-in location.
@@ -154,14 +154,14 @@ class Block(pygame.sprite.Sprite):
     """ used as base for mushrooms. could be used as other non-player objects"""
     # Constructor. Pass in the color of the block, 
     # and its x and y position
-    def __init__(self, filename):
+    def __init__(self, file):
         # Call the parent class (Sprite) constructor
         pygame.sprite.Sprite.__init__(self)
 
         # Create an image of the block, and fill it with a color.
         # This could also be an image loaded from the disk.
-        #fullname = os.path.join(self, filename)
-        self.image = pygame.image.load(filename).convert()
+        #fullname = os.path.join(self, file)
+        self.image = pygame.image.load(file).convert()
         self.image.set_colorkey(white)
 
         # Fetch the rectangle object that has the dimensions of the image
@@ -194,9 +194,9 @@ class GoodBlock(Block):
        rect.x += change_x
        rect.y += change_y
     '''
-    def __init__(self,filename):
+    def __init__(self,file):
     # Call the parent class (Sprite) constructor
-        Block.__init__(self, filename)
+        Block.__init__(self, file)
 
 
 class BadBlock(Block):
@@ -206,14 +206,14 @@ class BadBlock(Block):
        rect.x += change_x
        rect.y += change_y    
     '''
-    def __init__(self,filename):
+    def __init__(self,file):
     # Call the parent class (Sprite) constructor
-        Block.__init__(self, filename)
+        Block.__init__(self, file)
 
 """ globals: needed for display.setup callback function """
 screen = background = clock = screen_edge_sound = good_block_sound = bad_block_sound = None
 player = good_mush = bad_mush = all = None
-keystate = {K_RIGHT : False, K_LEFT : False, K_SPACE : False}
+keystate = {K_RIGHT : False, K_LEFT : False, K_SPACE : False, K_UP : False, K_DOWN : False}
 restart = waiting = False
 
 def wait():
@@ -284,13 +284,15 @@ def prerun():
 
     # Used to manage how fast the screen updates
     clock = pygame.time.Clock()
+    screen.blit(text, [player.rect.x,player.rect.y +35])
+    pygame.display.flip()
 
     score = 0
     if engine == 'pyjsdl':
         pygame.display.setup(run)
 
 def run():
-    global score
+    global score, done
     # -------- Main Program Loop -----------
     for event in pygame.event.get(): # User did something
         if event.type == pygame.QUIT: # If user clicked close
@@ -360,15 +362,15 @@ def run():
     text = font.render(str(score), True, black)
          
     # Put the image of the text on the screen at 250x250
-    screen.blit(text, [player.rect.x,player.rect.y +35])          
     # Draw all the spites
-    all_sprites_list.draw(screen)
+    dirty = all_sprites_list.draw(screen)
+    pygame.display.update(dirty)
         
     # Limit to 20 frames per second
-    #clock.tick(60)
+    clock.tick(30)
 
     # Go ahead and update the screen with what we've drawn.
-    pygame.display.flip()
+    
 
 
 def main():
